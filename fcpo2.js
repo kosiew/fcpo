@@ -45,14 +45,14 @@
   const timerElement = $('<h5 id="timer">timer</h5>');
 
   const TR_INDICES = {
-    1: "NAME",
-    2: "MONTH",
-    6: "LAST",
-    7: "CHANGE",
-    12: "SETTLEMENT",
-    8: "HIGH",
-    9: "LOW",
-    10: "VOLUME"
+    2: "NAME",
+    3: "MONTH",
+    7: "LAST",
+    8: "CHANGE",
+    13: "SETTLEMENT",
+    9: "HIGH",
+    10: "LOW",
+    11: "VOLUME"
   };
 
   const TR_COLUMN_INDICES = flipObject(TR_INDICES);
@@ -510,6 +510,7 @@
   }
 
   function getColumnCells(row, keys) {
+    d.log("getColumnCells+");
     const result = {};
 
     keys.forEach((key) => {
@@ -555,6 +556,9 @@
   function generateClassName(name, month = "") {
     const combined = name + month;
     const validClassName = combined.replace(/[^a-z0-9-_]/gi, "_").toLowerCase();
+    d.log(
+      `generateClassName: name:${name} month:${month} class:${validClassName}`
+    );
     return validClassName;
   }
 
@@ -573,11 +577,11 @@
   }
 
   function addClassNamesToCells(row, keys) {
+    d.log("addClassNamesToCells+");
     const cells = getColumnCells(row, keys);
 
-    const obj = createObjectFromArrays(keys, cells);
-    // iterate over the object, for each cell, elementAddClass(cell, key)
-    for (const [key, cell] of Object.entries(obj)) {
+    // key, values from cells
+    for (const [key, cell] of Object.entries(cells)) {
       const className = generateClassName(key);
       elementAddClass(cell, className);
     }
@@ -592,6 +596,7 @@
       const className = generateClassName(name, month);
 
       elementAddClass(row, className);
+      d.log("addClassNamesToRows - " + className);
       addClassNamesToCells(row, [
         "SETTLEMENT",
         "CHANGE",
