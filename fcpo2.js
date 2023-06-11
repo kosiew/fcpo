@@ -726,10 +726,7 @@ Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
     }
 
     if (!isWeekDay()) {
-      console.log(
-        `%c==> [not a weekday, exiting]`,
-        "background-color: #0595DE; color: yellow; padding: 8px; border-radius: 4px;"
-      );
+      notify("Not a weekday, exiting");
       return;
     }
     askNotificationPermission();
