@@ -32,17 +32,14 @@
     (NOON_END = 18.26),
     (NIGHT_START = 21.25),
     (NIGHT_END = 23.75);
-
-  const KEY = "FCPO";
-  const DB = _gm_getValue(KEY, {});
+  const CSS_CLASS_HIGHLIGHT = "highlight";
+  const KEY = "FCPO2";
   const WAIT_WEIGHTAGE = 8; // 8 means 8/10
   const RISK_MARGIN = 20;
   const MAX_DAILY_PERCENT_CHANGE = 0.1; // .1 = 10%
   const WAITS = Array(WAIT_WEIGHTAGE).fill("WAIT");
   const ACTIONS = shuffleArray(["BUY", "SELL", ...WAITS]);
 
-  const TABLE = document.querySelector("#DataTables_Table_0 > tbody");
-  const ROWS = TABLE.querySelectorAll("tr");
   const _today = truncateDate(new Date()); // new Date(new Date().getFullYear(),new Date().getMonth() , new Date().getDate());
   const logMessagesElement = $('<h5 id="log-messages">log messages</h5>');
   const timerElement = $('<h5 id="timer">timer</h5>');
@@ -72,7 +69,7 @@
 
   // for debugging
   const d = (function () {
-    const debug = false;
+    const debug = true;
     const messages = [];
     const MAX_LOG_MESSAGES = 5;
 
@@ -129,10 +126,11 @@
     }
 
     return {
-      log: log,
-      group: group,
-      groupEnd: groupEnd,
-      table: table
+      log,
+      group,
+      groupEnd,
+      table,
+      debug
     };
   })();
 
@@ -251,10 +249,13 @@
     return decimalHours;
   }
 
-  function truncateDate(d) {
-    const result = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    return result;
+  function truncateDate(date) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   }
+
   // date2 - date1
   function getDayDifference(date1, date2 = _today) {
     // new Date(new Date().getFullYear(),new Date().getMonth() , new Date().getDate())
@@ -273,24 +274,39 @@
     return shuffled;
   }
 
-  function monitorFcpo() {
-    const maxVolumeMonth = getMaxVolumeMonth();
-    const row = $(`table tr.odd:contains(${maxVolumeMonth})`);
-    const $e = row.find(".stock_change");
-    const values = fcpo.getTrColumnValues(row);
-    const change = parseInt($e.text());
+  function getLimits(settlement) {
+    const down = (
+      (1 - MAX_DAILY_PERCENT_CHANGE) * settlement +
+      RISK_MARGIN
+    ).toFixed();
+    const up = (
+      (1 + MAX_DAILY_PERCENT_CHANGE) * settlement -
+      RISK_MARGIN
+    ).toFixed();
+    return { down, up };
+  }
+
+  function monitorFcpo(row, db) {
+    d.log("monitorFcpo+");
+    const { month, change, high, low, settlement } = getColumnValues(row, [
+      "MONTH",
+      "CHANGE",
+      "HIGH",
+      "LOW",
+      "SETTLEMENT"
+    ]);
     const abs_change = Math.abs(change);
-    d.log(`change = ${change}`);
     if (abs_change > CHANGE_THRESHOLD) {
+      const limit = getLimits(settlement);
       const decimalHours = getDecimalHours();
       if (
         (decimalHours > MORNING_START && decimalHours < MORNING_END) ||
         (decimalHours > NOON_START && decimalHours < NOON_END) ||
         (decimalHours > NIGHT_START && decimalHours < NIGHT_END)
       ) {
-        const changeMessage = `FCPO ${maxVolumeMonth} change is ${change}.`;
+        const changeMessage = `FCPO ${month} change is ${change}.`;
         const message =
-          values.LOW <= values.LIMIT_DOWN || values.HIGH >= values.LIMIT_UP
+          low <= limit.down || high >= limit.up
             ? `${changeMessage} \nHit Limit!`
             : changeMessage;
         notify(message);
@@ -351,6 +367,7 @@
   }
 
   function addToolTipStyle() {
+    d.log("addToolTipStyle+");
     $("head").append(
       "<link " +
         'href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css" ' +
@@ -372,18 +389,17 @@
     }, WAIT_MILISECONDS_BETWEEN_COPY);
   }
 
-  function addDataButtons() {
+  function addDataButtons(db) {
+    d.log("addDataButtons+");
     const searchButton = $(".btn-primary");
     const inputCenter = $(".input-center");
     const copyDataButton = $(
       '<button id="copy-history-data">Copy history data</button>'
     );
     copyDataButton.click(() => {
-      const data = { FCPO: { ...fcpo.db } };
+      const data = { FCPO: { ...db } };
       const dataJson = JSON.stringify(data);
-      const tableData = fcpo.tableData;
-      const tableDataJson = JSON.stringify(tableData);
-      const items = [dataJson, tableDataJson];
+      const items = [dataJson];
       copyItemsToClipboard(items);
     });
     inputCenter.after(copyDataButton);
@@ -432,6 +448,7 @@
   }
 
   function addAction() {
+    d.log("addAction+");
     const b = $("#copy-history-data");
     const h1 = $(`<h1>${fcpo.ACTION}</h1>`);
     b.after(h1);
@@ -458,17 +475,35 @@
     return content;
   }
 
+  // pre-requisite cells in row has relevant css class
+  function getValueOfElementByCssClass(row, cssClass) {
+    const cell = row.querySelector(`.${cssClass.toLowerCase()}`);
+    const content = cell.textContent.trim();
+
+    // Check if the content is numeric or NaN
+    if (
+      /^-?\d[\d,]*(\.\d+)?$/.test(content) ||
+      content.toLowerCase() === "nan"
+    ) {
+      // Remove commas, convert the content to a number, and process NaN as 0
+      return parseFloat(content.replace(/,/g, "")) || 0;
+    }
+
+    return content;
+  }
+
   function getCell(row, columnName) {
     const columnIndex = TR_COLUMN_INDICES[columnName];
     const cell = row.querySelector(`td:nth-child(${columnIndex})`);
     return cell;
   }
 
+  // pre-requisite cells in row has relevant css class
   function getColumnValues(row, keys) {
     const result = {};
 
     keys.forEach((key) => {
-      result[key.toLowerCase()] = getCellValue(row, key);
+      result[key.toLowerCase()] = getValueOfElementByCssClass(row, key);
     });
 
     return result;
@@ -490,11 +525,6 @@
     for (const cssClass of rowClasses) {
       // find element with cssClass
       const row = document.querySelector(`.${cssClass}`);
-      // stopped here
-    }
-
-    for (let i = 0; i < ROWS.length; i++) {
-      const row = ROWS[i];
       const { name, month, settlement, change, high, low, volume } =
         getColumnValues(row, [
           "NAME",
@@ -506,8 +536,9 @@
           "VOLUME"
         ]);
 
-      if (!name.includes("T+1")) {
+      if (month) {
         jsonData.push({
+          name,
           month,
           settlement,
           change,
@@ -516,9 +547,9 @@
           volume
         });
       }
-      const date = _today;
-      return { [date]: jsonData };
     }
+    const date = _today;
+    return { [date]: jsonData };
   }
 
   function generateClassName(name, month = "") {
@@ -552,15 +583,15 @@
     }
   }
 
-  function addClassNamesToRows() {
+  function addClassNamesToRows(rows) {
+    d.log("addClassNamesToRows+");
     const classes = [];
-    for (const row of ROWS) {
+    for (const row of rows) {
       const name = getCellValue(row, "NAME");
       const month = getCellValue(row, "MONTH");
       const className = generateClassName(name, month);
 
       elementAddClass(row, className);
-      classes.push(className);
       addClassNamesToCells(row, [
         "SETTLEMENT",
         "CHANGE",
@@ -568,17 +599,126 @@
         "LOW",
         "VOLUME"
       ]);
+      if (!name.includes("T+1")) {
+        classes.push(className);
+      }
     }
     return classes;
   }
 
-  function saveFcpo(rowClasses) {
-    const todayJson = getTodayJson(rowClasses);
-    const updatedDB = { ...DB, ...todayJson };
-    _gm_setValue(KEY, updatedDB);
+  function truncateDB() {
+    const db = _gm_getValue(KEY, {});
+    const dayMiliseconds = 1000 * 60 * 60 * 24;
+    const keys = Object.keys(db);
+    for (const key of keys) {
+      // key has format yyyy-mm-dd
+      // delete keys which are x days old
+      const diff = new Date(_today) - truncateDate(new Date(key));
+      const days = diff / dayMiliseconds;
+      if (days > MAX_DAYS_DATA) {
+        delete db[key];
+      }
+    }
+    return db;
   }
 
+  function saveFcpo(rowClasses) {
+    d.log("saveFcpo+");
+    const todayJson = getTodayJson(rowClasses);
+    const truncatedDB = truncateDB();
+    const updatedDB = { ...truncatedDB, ...todayJson };
+    _gm_setValue(KEY, updatedDB);
+    return { updatedDB, todayJson };
+  }
+
+  function getTableAndRows() {
+    d.log("getTableAndRows+");
+    const table = document.querySelector("#DataTables_Table_0 > tbody");
+    const rows = table.querySelectorAll("tr");
+    return { table, rows };
+  }
+
+  function highlightRow(todayJson, highlightIndex = 1) {
+    d.log("highlightRow+");
+    const rows = todayJson[_today];
+    const monthVolumes = [];
+    for (const row of rows) {
+      const { name, month, volume } = row;
+      const key = generateClassName(name, month);
+      monthVolumes.push({ key, volume });
+    }
+    // sort by volume descending
+    monthVolumes.sort((a, b) => b.volume - a.volume);
+    const topVolumes = monthVolumes.slice(0, highlightIndex + 1);
+    const indexItem = topVolumes[highlightIndex];
+    const cssClass = indexItem.key;
+    const row = document.querySelector(`.${cssClass}`);
+    elementAddClass(row, CSS_CLASS_HIGHLIGHT);
+    highlightElement(row);
+    return row;
+  }
+
+  function generateMinMaxByMonth(db) {
+    const result = {};
+
+    for (const date in db) {
+      const { month, low, high } = db[date];
+
+      if (result[month]) {
+        result[month].min = Math.min(result[month].min, low);
+        result[month].max = Math.max(result[month].max, high);
+      } else {
+        result[month] = { month, min: low, max: high };
+      }
+    }
+
+    // return Object.values(result);
+    return result;
+  }
+
+  function getAction(change) {
+    const abs_change = Math.abs(change);
+    if (abs_change > CHANGE_THRESHOLD) {
+      return change > 0 ? "SELL" : "BUY";
+    }
+    return `CHANGE ${change}, Sit Tight`;
+  }
+
+  function addToolTip(todayJson, db) {
+    d.group("addToolTip");
+    const minMaxByMonth = generateMinMaxByMonth(db);
+    const rows = todayJson[_today];
+    for (const row of rows) {
+      const { name, month, settlement, change, high, low, volume } = row;
+      const cssClass = generateClassName(name, month);
+      const rowElement = document.querySelector(`.${cssClass}`);
+      const $rowElement = $(rowElement);
+      const { max, min } = minMaxByMonth[month];
+      const range = max - min;
+      const ACTION = getAction(change);
+      let gapAdvice = "";
+      if (low > settlement) {
+        gapAdvice = "GAP UP!!";
+      }
+      if (high < settlement) {
+        gapAdvice = "GAP DOWN!!";
+      }
+      gapAdvice = gapAdvice ? `${gapAdvice}<br>` : "";
+      const { down, up } = getLimits(settlement);
+      $tr.tooltip({
+        content: `
+${gapAdvice}
+Max: ${max}, Min: ${min}<br>
+Range: ${range} Action:${ACTION}<br>
+Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
+      });
+    }
+    d.groupEnd();
+  }
+
+  d.log("waiting for document ready");
   $(function () {
+    d.log("document ready");
     function isWeekDay() {
       const day = new Date().getDay();
       return day > 0 && day < 6;
@@ -588,16 +728,17 @@
       return;
     }
     askNotificationPermission();
-    const rowClasses = addClassNamesToRows();
-    saveFcpo(rowClasses);
-    highlightRow();
-    monitorFcpo();
+    const { table, rows } = getTableAndRows();
+    const rowClasses = addClassNamesToRows(rows);
+    const { db, todayJson } = saveFcpo(rowClasses);
+    const row = highlightRow(todayJson);
+    monitorFcpo(row, db);
     addToolTipStyle();
-    addDataButtons();
+    addToolTip(todayJson, db);
+    addDataButtons(db);
     addAction();
 
     reload();
-
     // do something on document ready
   }); // end ready
 })(jQuery); //invoke nameless function and pass it the jQuery object
