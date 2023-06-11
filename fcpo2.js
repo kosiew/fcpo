@@ -18,11 +18,7 @@
 (function ($) {
   //function to create private scope with $ parameter
   // FcpoPlus.js
-  const TR_MONTH_INDEX = 2,
-    MONTH_INDEX = 6,
-    MAX_MONTH_INDEX = 9,
-    MAX_DAY_DIFFERENCE = 14;
-  MAX_DAYS_DATA = 31;
+  const MAX_DAYS_DATA = 31;
   (WAIT_MILISECONDS = 600000),
     (CHANGE_THRESHOLD = 100),
     (NOTIFICATION_TITLE = "FCPO Alert"),
@@ -457,11 +453,7 @@
     elem.classList.add(className);
   }
 
-  function getCellValue(row, columnName) {
-    const columnIndex = TR_COLUMN_INDICES[columnName];
-    const cell = row.querySelector(`td:nth-child(${columnIndex})`);
-    const content = cell.textContent.trim();
-
+  function parseContent(content) {
     // Check if the content is numeric or NaN
     if (
       /^-?\d[\d,]*(\.\d+)?$/.test(content) ||
@@ -472,6 +464,14 @@
     }
 
     return content;
+  }
+
+  function getCellValue(row, columnName) {
+    const columnIndex = TR_COLUMN_INDICES[columnName];
+    const cell = row.querySelector(`td:nth-child(${columnIndex})`);
+    const content = cell.textContent.trim();
+
+    return parseContent(content);
   }
 
   // pre-requisite cells in row has relevant css class
@@ -480,18 +480,8 @@
     const cell = row.querySelector(`.${cssClass.toLowerCase()}`);
     const content = cell.textContent.trim();
 
-    // Check if the content is numeric or NaN
-    if (
-      /^-?\d[\d,]*(\.\d+)?$/.test(content) ||
-      content.toLowerCase() === "nan"
-    ) {
-      // Remove commas, convert the content to a number, and process NaN as 0
-      return parseFloat(content.replace(/,/g, "")) || 0;
-    }
-
-    return content;
+    return parseContent(content);
   }
-
   function getCell(row, columnName) {
     const columnIndex = TR_COLUMN_INDICES[columnName];
     const cell = row.querySelector(`td:nth-child(${columnIndex})`);
