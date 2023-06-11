@@ -58,7 +58,7 @@
   const TR_COLUMN_INDICES = flipObject(TR_INDICES);
 
   const options = {
-    DEBUG: true
+    DEBUG: false
   };
 
   $.fn.multiline = function (text) {
@@ -69,7 +69,7 @@
 
   // for debugging
   const d = (function () {
-    const debug = true;
+    const debug = options.DEBUG;
     const messages = [];
     const MAX_LOG_MESSAGES = 5;
 
