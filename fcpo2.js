@@ -724,9 +724,6 @@ Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
       return day > 0 && day < 6;
     }
 
-    if (!isWeekDay()) {
-      return;
-    }
     askNotificationPermission();
     const { table, rows } = getTableAndRows();
     const rowClasses = addClassNamesToRows(rows);
