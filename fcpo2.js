@@ -412,7 +412,6 @@
     const decimalHours = getDecimalHours();
     const reload = decimalHours < NIGHT_END;
     d.log(`decimalHours = ${decimalHours}, reload = ${reload}`);
-    d.log(`ACTIONS = ${fcpo.ACTIONS}`);
     if (reload) {
       let waitHours;
       if (
@@ -447,10 +446,10 @@
     }
   }
 
-  function addAction() {
+  function addAction(action) {
     d.log("addAction+");
     const b = $("#copy-history-data");
-    const h1 = $(`<h1>${fcpo.ACTION}</h1>`);
+    const h1 = $(`<h1>${action}</h1>`);
     b.after(h1);
   }
 
@@ -477,6 +476,7 @@
 
   // pre-requisite cells in row has relevant css class
   function getValueOfElementByCssClass(row, cssClass) {
+    d.log("getValueOfElementByCssClass+ " + cssClass.toLowerCase());
     const cell = row.querySelector(`.${cssClass.toLowerCase()}`);
     const content = cell.textContent.trim();
 
@@ -598,6 +598,8 @@
       elementAddClass(row, className);
       d.log("addClassNamesToRows - " + className);
       addClassNamesToCells(row, [
+        "NAME",
+        "MONTH",
         "SETTLEMENT",
         "CHANGE",
         "HIGH",
@@ -632,8 +634,8 @@
     const todayJson = getTodayJson(rowClasses);
     const truncatedDB = truncateDB();
     const updatedDB = { ...truncatedDB, ...todayJson };
-    _gm_setValue(KEY, updatedDB);
-    return { updatedDB, todayJson };
+    GM_setValue(KEY, updatedDB);
+    return { db: updatedDB, todayJson };
   }
 
   function getTableAndRows() {
@@ -664,26 +666,30 @@
   }
 
   function generateMinMaxByMonth(db) {
+    d.group("generateMinMaxByMonth+ ");
     const result = {};
+    d.log("generateMinMaxByMonth db:" + JSON.stringify(db));
 
-    for (const date in db) {
-      const { month, low, high } = db[date];
-
-      if (result[month]) {
-        result[month].min = Math.min(result[month].min, low);
-        result[month].max = Math.max(result[month].max, high);
-      } else {
-        result[month] = { month, min: low, max: high };
+    // keys, values in db
+    for (const [date, monthsRows] of Object.entries(db)) {
+      for (const monthRow of monthsRows) {
+        const { month, low, high } = monthRow;
+        if (result[month]) {
+          result[month].min = Math.min(result[month].min, low);
+          result[month].max = Math.max(result[month].max, high);
+        } else {
+          result[month] = { month, min: low, max: high };
+        }
       }
     }
-
-    // return Object.values(result);
+    d.log("generateMinMaxByMonth- " + JSON.stringify(result));
+    d.groupEnd();
     return result;
   }
 
   function getAction(change) {
     const abs_change = Math.abs(change);
-    if (abs_change > CHANGE_THRESHOLD) {
+    if (abs_change >= CHANGE_THRESHOLD) {
       return change > 0 ? "SELL" : "BUY";
     }
     return `CHANGE ${change}, Sit Tight`;
@@ -700,7 +706,7 @@
       const $rowElement = $(rowElement);
       const { max, min } = minMaxByMonth[month];
       const range = max - min;
-      const ACTION = getAction(change);
+      const action = getAction(change);
       let gapAdvice = "";
       if (low > settlement) {
         gapAdvice = "GAP UP!!";
@@ -710,11 +716,11 @@
       }
       gapAdvice = gapAdvice ? `${gapAdvice}<br>` : "";
       const { down, up } = getLimits(settlement);
-      $tr.tooltip({
+      $rowElement.tooltip({
         content: `
 ${gapAdvice}
 Max: ${max}, Min: ${min}<br>
-Range: ${range} Action:${ACTION}<br>
+Range: ${range} Action:${action}<br>
 Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
       });
     }
@@ -738,7 +744,6 @@ Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
     addToolTipStyle();
     addToolTip(todayJson, db);
     addDataButtons(db);
-    addAction();
 
     reload();
     // do something on document ready
