@@ -18,6 +18,9 @@
 (function ($) {
   //function to create private scope with $ parameter
   // FcpoPlus.js
+  const options = {
+    DEBUG: true
+  };
   const MAX_DAYS_DATA = 31;
   (WAIT_MILISECONDS = 600000),
     (CHANGE_THRESHOLD = 100),
@@ -52,10 +55,6 @@
   };
 
   const TR_COLUMN_INDICES = flipObject(TR_INDICES);
-
-  const options = {
-    DEBUG: false
-  };
 
   $.fn.multiline = function (text) {
     this.text(text);
@@ -401,10 +400,11 @@
     inputCenter.after(copyDataButton);
     inputCenter.after(timerElement);
     inputCenter.after(logMessagesElement);
-    timer.register(timerElement);
   }
 
   function reload() {
+    d.log("reload+");
+    timer.register(timerElement);
     const decimalHours = getDecimalHours();
     const reload = decimalHours < NIGHT_END;
     d.log(`decimalHours = ${decimalHours}, reload = ${reload}`);
@@ -527,7 +527,7 @@
           "VOLUME"
         ]);
 
-      if (month) {
+      if (month && volume !== "-") {
         jsonData.push({
           name,
           month,
@@ -638,21 +638,28 @@
   function highlightRow(todayJson, highlightIndex = 1) {
     d.log("highlightRow+");
     const rows = todayJson[_today];
-    const monthVolumes = [];
-    for (const row of rows) {
-      const { name, month, volume } = row;
-      const key = generateClassName(name, month);
-      monthVolumes.push({ key, volume });
+    console.log(
+      `%c👀  ==> [highlightRow] 👀`,
+      "background-color: #0595DE; color: yellow; padding: 8px; border-radius: 4px;",
+      { rows }
+    );
+    if (rows.length > 0) {
+      const monthVolumes = [];
+      for (const row of rows) {
+        const { name, month, volume } = row;
+        const key = generateClassName(name, month);
+        monthVolumes.push({ key, volume });
+      }
+      // sort by volume descending
+      monthVolumes.sort((a, b) => b.volume - a.volume);
+      const topVolumes = monthVolumes.slice(0, highlightIndex + 1);
+      const indexItem = topVolumes[highlightIndex];
+      const cssClass = indexItem.key;
+      const row = document.querySelector(`.${cssClass}`);
+      elementAddClass(row, CSS_CLASS_HIGHLIGHT);
+      highlightElement(row);
+      return row;
     }
-    // sort by volume descending
-    monthVolumes.sort((a, b) => b.volume - a.volume);
-    const topVolumes = monthVolumes.slice(0, highlightIndex + 1);
-    const indexItem = topVolumes[highlightIndex];
-    const cssClass = indexItem.key;
-    const row = document.querySelector(`.${cssClass}`);
-    elementAddClass(row, CSS_CLASS_HIGHLIGHT);
-    highlightElement(row);
-    return row;
   }
 
   function generateMinMaxByMonth(db) {
@@ -664,11 +671,13 @@
     for (const [date, monthsRows] of Object.entries(db)) {
       for (const monthRow of monthsRows) {
         const { month, low, high } = monthRow;
-        if (result[month]) {
-          result[month].min = Math.min(result[month].min, low);
-          result[month].max = Math.max(result[month].max, high);
-        } else {
-          result[month] = { month, min: low, max: high };
+        if (low !== "-" && high === "-") {
+          if (result[month]) {
+            result[month].min = Math.min(result[month].min, low);
+            result[month].max = Math.max(result[month].max, high);
+          } else {
+            result[month] = { month, min: low, max: high };
+          }
         }
       }
     }
@@ -734,11 +743,13 @@ Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
     const rowClasses = addClassNamesToRows(rows);
     const { db, todayJson } = saveFcpo(rowClasses);
     const row = highlightRow(todayJson);
-    monitorFcpo(row, db);
-    addToolTipStyle();
-    addToolTip(todayJson, db);
-    addDataButtons(db);
+    if (row) {
+      monitorFcpo(row, db);
+      addToolTipStyle();
+      addToolTip(todayJson, db);
+    }
 
+    addDataButtons(db);
     reload();
     // do something on document ready
   }); // end ready
