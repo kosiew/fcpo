@@ -669,15 +669,23 @@
 
     // keys, values in db
     for (const [date, monthsRows] of Object.entries(db)) {
+      console.log(
+        `%c👀  ==> [generateMinMax] 👀`,
+        "background-color: #0595DE; color: yellow; padding: 8px; border-radius: 4px;",
+        { date, monthsRows }
+      );
       for (const monthRow of monthsRows) {
         const { month, low, high } = monthRow;
-        if (low !== "-" && high === "-") {
-          if (result[month]) {
-            result[month].min = Math.min(result[month].min, low);
-            result[month].max = Math.max(result[month].max, high);
-          } else {
-            result[month] = { month, min: low, max: high };
-          }
+        console.log(
+          `%c👀  ==> [generateMinMax] 👀`,
+          "background-color: #0595DE; color: yellow; padding: 8px; border-radius: 4px;",
+          { month, low, high }
+        );
+        if (result[month]) {
+          result[month].min = Math.min(result[month].min, low);
+          result[month].max = Math.max(result[month].max, high);
+        } else {
+          result[month] = { month, min: low, max: high };
         }
       }
     }
