@@ -337,6 +337,11 @@
     }, 1000);
   }
 
+  function isWeekDay() {
+    const day = new Date().getDay();
+    return day > 0 && day < 6;
+  }
+
   function today() {
     const _td = _today;
     let dd = _td.getDate();
@@ -726,6 +731,7 @@
       $rowElement.tooltip({
         content: `
 ${gapAdvice}
+${MAX_DAYS_DATA} days<br>
 Max: ${max}, Min: ${min}<br>
 Range: ${range} Action:${action}<br>
 Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
@@ -737,10 +743,6 @@ Limits (risk ${RISK_MARGIN}): ${up} - ${down}`
   d.log("waiting for document ready");
   $(function () {
     d.log("document ready");
-    function isWeekDay() {
-      const day = new Date().getDay();
-      return day > 0 && day < 6;
-    }
 
     if (!isWeekDay()) {
       notify("Not a weekday, exiting");
