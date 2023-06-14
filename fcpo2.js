@@ -284,16 +284,20 @@
 
   function monitorFcpo(row, db) {
     d.log("monitorFcpo+");
-    const { month, change, high, low, settlement } = getColumnValues(row, [
+    const { month, high, low, settlement } = getColumnValues(row, [
       "MONTH",
       "CHANGE",
       "HIGH",
       "LOW",
       "SETTLEMENT"
     ]);
-    const abs_change = Math.abs(change);
-    if (abs_change > CHANGE_THRESHOLD) {
-      d.log(`FCPO ${month} change is ${change} > ${CHANGE_THRESHOLD}`);
+    // max of abs(high - settlement), abs(low - settlement)
+    const change = Math.max(
+      Math.abs(high - settlement),
+      Math.abs(low - settlement)
+    );
+    if (change > CHANGE_THRESHOLD) {
+      d.log(`FCPO ${month} max change is ${change} > ${CHANGE_THRESHOLD}`);
       const limit = getLimits(settlement);
       const decimalHours = getDecimalHours();
       if (
@@ -301,7 +305,7 @@
         (decimalHours > NOON_START && decimalHours < NOON_END) ||
         (decimalHours > NIGHT_START && decimalHours < NIGHT_END)
       ) {
-        const changeMessage = `FCPO ${month} change is ${change}.`;
+        const changeMessage = `FCPO ${month} max change is ${change}.`;
         const message =
           low <= limit.down || high >= limit.up
             ? `${changeMessage} \nHit Limit!`
