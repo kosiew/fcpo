@@ -230,6 +230,7 @@
   }
 
   function notify(message) {
+    d.log("notify+ " + message);
     const notification = new Notification(NOTIFICATION_TITLE, {
       body: message
     });
@@ -292,6 +293,7 @@
     ]);
     const abs_change = Math.abs(change);
     if (abs_change > CHANGE_THRESHOLD) {
+      d.log(`FCPO ${month} change is ${change} > ${CHANGE_THRESHOLD}`);
       const limit = getLimits(settlement);
       const decimalHours = getDecimalHours();
       if (
