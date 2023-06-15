@@ -291,11 +291,7 @@
       "LOW",
       "SETTLEMENT"
     ]);
-    // max of abs(high - settlement), abs(low - settlement)
-    const change = Math.max(
-      Math.abs(high - settlement),
-      Math.abs(low - settlement)
-    );
+    const change = getChange(high, low, settlement);
     if (change > CHANGE_THRESHOLD) {
       d.log(`FCPO ${month} max change is ${change} > ${CHANGE_THRESHOLD}`);
       const limit = getLimits(settlement);
@@ -713,17 +709,27 @@
     return `CHANGE ${change}, Sit Tight`;
   }
 
+  function getChange(high, low, settlement) {
+    const change = Math.max(
+      Math.abs(high - settlement),
+      Math.abs(low - settlement)
+    );
+    return change;
+  }
+
   function addToolTip(todayJson, db) {
     d.group("addToolTip");
     const minMaxByMonth = generateMinMaxByMonth(db);
     const rows = todayJson[_today];
     for (const row of rows) {
-      const { name, month, settlement, change, high, low, volume } = row;
+      const { name, month, settlement, high, low, volume } = row;
       const cssClass = generateClassName(name, month);
       const rowElement = document.querySelector(`.${cssClass}`);
       const $rowElement = $(rowElement);
       const { max, min } = minMaxByMonth[month];
       const range = max - min;
+      // max of abs (high - settlement), abs (low - settlement)
+      const change = getChange(high, low, settlement);
       const action = getAction(change);
       let gapAdvice = "";
       if (low > settlement) {
