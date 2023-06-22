@@ -33,6 +33,7 @@
     (NIGHT_END = 23.75);
   const CSS_CLASS_HIGHLIGHT = "highlight";
   const KEY = "FCPO2";
+  const HIGHLIGHT_INDEX = 0;
   const WAIT_WEIGHTAGE = 8; // 8 means 8/10
   const RISK_MARGIN = 20;
   const MAX_DAILY_PERCENT_CHANGE = 0.1; // .1 = 10%
@@ -642,7 +643,7 @@
     return { table, rows };
   }
 
-  function highlightRow(todayJson, highlightIndex = 1) {
+  function highlightRow(todayJson, highlightIndex = HIGHLIGHT_INDEX) {
     d.log("highlightRow+");
     const rows = todayJson[_today];
     console.log(
