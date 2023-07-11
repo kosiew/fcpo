@@ -10,6 +10,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @grant        GM_notification
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @require      https://gist.github.com/raw/2625891/waitForKeyElements.js
@@ -230,11 +231,10 @@
     return true;
   }
 
-  function notify(message) {
-    d.log("notify+ " + message);
-    const notification = new Notification(NOTIFICATION_TITLE, {
-      body: message
-    });
+  function notify(text) {
+    d.log("notify+ " + text);
+    const title = NOTIFICATION_TITLE;
+    GM_notification({ title, text });
   }
 
   function getDecimalHours() {
